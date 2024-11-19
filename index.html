@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loan Eligibility System</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { font-weight: bold; }
+        input, select, button { width: 100%; padding: 10px; margin-top: 5px; }
+        button { background-color: #28a745; color: white; border: none; cursor: pointer; }
+        button:hover { background-color: #218838; }
+        .result { margin-top: 20px; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>Loan Eligibility Prediction</h1>
+    <form id="loanForm">
+        <div class="form-group">
+            <label for="gender">Gender</label>
+            <select id="gender" name="Gender">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="married">Married</label>
+            <select id="married" name="Married">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="dependents">Dependents</label>
+            <input type="number" id="dependents" name="Dependents" min="0">
+        </div>
+        <div class="form-group">
+            <label for="education">Education</label>
+            <select id="education" name="Education">
+                <option value="Graduate">Graduate</option>
+                <option value="Not Graduate">Not Graduate</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="selfEmployed">Self Employed</label>
+            <select id="selfEmployed" name="Self_Employed">
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="applicantIncome">Applicant Income</label>
+            <input type="number" id="applicantIncome" name="ApplicantIncome">
+        </div>
+        <div class="form-group">
+            <label for="coapplicantIncome">Coapplicant Income</label>
+            <input type="number" id="coapplicantIncome" name="CoapplicantIncome">
+        </div>
+        <div class="form-group">
+            <label for="loanAmount">Loan Amount</label>
+            <input type="number" id="loanAmount" name="LoanAmount">
+        </div>
+        <div class="form-group">
+            <label for="loanTerm">Loan Amount Term</label>
+            <input type="number" id="loanTerm" name="Loan_Amount_Term">
+        </div>
+        <div class="form-group">
+            <label for="creditHistory">Credit History</label>
+            <select id="creditHistory" name="Credit_History">
+                <option value="1.0">1.0</option>
+                <option value="0.0">0.0</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="propertyArea">Property Area</label>
+            <select id="propertyArea" name="Property_Area">
+                <option value="Urban">Urban</option>
+                <option value="Semiurban">Semiurban</option>
+                <option value="Rural">Rural</option>
+            </select>
+        </div>
+        <button type="button" onclick="submitForm()">Submit</button>
+    </form>
+    <div class="result" id="result"></div>
+
+    <script>
+        async function submitForm() {
+            const form = document.getElementById('loanForm');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            const response = await fetch('http://127.0.0.1:5000/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+            document.getElementById('result').innerText =
+                `Prediction: ${result.prediction}, Probability: ${result.probability}`;
+        }
+    </script>
+</body>
+</html>
