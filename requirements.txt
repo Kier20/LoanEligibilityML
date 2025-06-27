@@ -14,7 +14,7 @@ click==8.1.7
 cloudpickle==3.0.0
 colorama==0.4.6
 contourpy==1.2.0
-cuda-python==12.3.0
+cuda-python==12.9.0
 cycler==0.12.1
 dask==2024.1.1
 dask-glm==0.3.2
