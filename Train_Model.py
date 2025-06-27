@@ -1,96 +1,147 @@
+import os
 import pandas as pd
 import numpy as np
-from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
-from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
-from imblearn.combine import SMOTETomek
-from sklearn.ensemble import RandomForestClassifier, VotingClassifier
-from xgboost import XGBClassifier
-from sklearn.ensemble import GradientBoostingClassifier
 import joblib
+import tensorflow as tf
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from imblearn.over_sampling import SMOTE
 
-# Load dataset
-data = pd.read_csv('Automated-Loan-Eligibility-Prediction-main/data/train.csv')
-data = data.drop(columns=['Loan_ID'])
+# --- Ensure folders exist ---
+os.makedirs("plots", exist_ok=True)
+os.makedirs("reports", exist_ok=True)
 
-# Handle '3+' in 'Dependents' column
-data['Dependents'] = data['Dependents'].replace('3+', '3')
-data['Dependents'] = pd.to_numeric(data['Dependents'], errors='coerce')
-data['Dependents'].fillna(data['Dependents'].mode()[0], inplace=True)
+# --- Load Data ---
+data = pd.read_csv("data/preprocessed_data.csv")
+X = data.drop(columns=["loan_status"])
+y = data["loan_status"]
 
-# Replace categorical columns with numeric values
-data['Married'] = data['Married'].replace({'No': 0, 'Yes': 1}).astype(float)
-data['Education'] = data['Education'].replace({'Not Graduate': 0, 'Graduate': 1}).astype(float)
-data['Self_Employed'] = data['Self_Employed'].replace({'No': 0, 'Yes': 1}).astype(float)
-data['Loan_Status'] = data['Loan_Status'].replace({'N': 0, 'Y': 1}).astype(float)
+kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+summary = []
 
-# Apply one-hot encoding to categorical features
-data = pd.get_dummies(data, columns=['Gender', 'Married', 'Education', 'Property_Area'])
+fold = 1
+for train_index, val_index in kf.split(X, y):
+    print(f"\n--- Fold {fold} ---")
 
-# Feature Engineering: Debt-to-Income Ratio (DTI)
-data['TotalIncome'] = data['ApplicantIncome'] + data['CoapplicantIncome']
-data['LoanIncomeRatio'] = data['LoanAmount'] / (data['TotalIncome'] + 1)
+    # Split data
+    X_train, X_val = X.iloc[train_index].copy(), X.iloc[val_index].copy()
+    y_train, y_val = y.iloc[train_index].copy(), y.iloc[val_index].copy()
 
-# Log transformation to reduce skewness
-data['ApplicantIncome'] = np.log1p(data['ApplicantIncome'])
-data['CoapplicantIncome'] = np.log1p(data['CoapplicantIncome'])
-data['LoanAmount'] = np.log1p(data['LoanAmount'])
+    # SMOTE before scaling
+    smote = SMOTE(random_state=42)
+    X_train_resampled, y_train_resampled = smote.fit_resample(X_train, y_train)
 
-# Handle missing values
-numerical_imputer = SimpleImputer(strategy='mean')
-categorical_imputer = SimpleImputer(strategy='most_frequent')
-data['LoanAmount'] = numerical_imputer.fit_transform(data[['LoanAmount']])
-data = pd.DataFrame(categorical_imputer.fit_transform(data), columns=data.columns)
+    # Scale after SMOTE
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train_resampled)
+    X_val_scaled = scaler.transform(X_val)
 
-# Normalize numerical columns
-scaler = MinMaxScaler()
-numerical_columns = ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'TotalIncome', 'LoanIncomeRatio']
-data[numerical_columns] = scaler.fit_transform(data[numerical_columns])
+    # Save scaler for Fold 1
+    if fold == 1:
+        joblib.dump(scaler, "models/scaler.pkl")
 
-# Separate features and target
-X = data.drop(['Loan_Status'], axis=1)
-y = data['Loan_Status']
+    # Build model
+    model = tf.keras.Sequential([
+        tf.keras.layers.Dense(64, activation="relu", input_shape=(X_train_scaled.shape[1],)),
+        tf.keras.layers.Dropout(0.4),
+        tf.keras.layers.Dense(32, activation="relu"),
+        tf.keras.layers.Dropout(0.3),
+        tf.keras.layers.Dense(1, activation="sigmoid")
+    ])
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
+        loss=tf.keras.losses.BinaryCrossentropy(label_smoothing=0.05),
+        metrics=["accuracy"]
+    )
 
-# Perform SMOTETomek to handle class imbalance
-smote_tomek = SMOTETomek(random_state=42)
-X_res, y_res = smote_tomek.fit_resample(X, y)
+    early_stop = tf.keras.callbacks.EarlyStopping(monitor="val_loss", patience=5, restore_best_weights=True)
 
-# Models for Voting
-rf = RandomForestClassifier(random_state=42)
-xgb = XGBClassifier(random_state=42, eval_metric='logloss')
-gbc = GradientBoostingClassifier(random_state=42)
+    # Train model
+    history = model.fit(
+        X_train_scaled, y_train_resampled,
+        validation_data=(X_val_scaled, y_val),
+        epochs=50,
+        batch_size=64,
+        callbacks=[early_stop],
+        verbose=1
+    )
 
-# Voting Classifier
-ensemble_model = VotingClassifier(estimators=[('rf', rf), ('xgb', xgb), ('gbc', gbc)], voting='soft')
+    # Predict and evaluate
+    y_pred = model.predict(X_val_scaled).flatten()
+    y_class = (y_pred > 0.5).astype(int)
 
-# Stratified Cross-Validation
-skf = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
-cv_scores = cross_val_score(ensemble_model, X_res, y_res, cv=skf, scoring='accuracy')
+    acc = accuracy_score(y_val, y_class)
+    report = classification_report(y_val, y_class, output_dict=True)
+    conf = confusion_matrix(y_val, y_class)
 
-# Train-Test Split for final evaluation
-X_train, X_test, y_train, y_test = train_test_split(X_res, y_res, test_size=0.3, random_state=42)
-ensemble_model.fit(X_train, y_train)
+    # --- Save Confusion Matrix Plot ---
+    plt.figure(figsize=(6, 4))
+    sns.heatmap(conf, annot=True, fmt="d", cmap="Blues", xticklabels=["Denied", "Approved"], yticklabels=["Denied", "Approved"])
+    plt.title(f"Confusion Matrix - Fold {fold}")
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.tight_layout()
+    plt.savefig(f"plots/confusion_matrix_fold_{fold}.png")
+    plt.close()
 
-# Evaluate on test set
-y_pred = ensemble_model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
-classification_rep = classification_report(y_test, y_pred)
-confusion_mat = confusion_matrix(y_test, y_pred)
 
-# Display results
-print("Cross-Validation Accuracy: {:.4f}".format(cv_scores.mean()))
-print("Test Accuracy: {:.4f}".format(accuracy))
-print("\nClassification Report:\n", classification_rep)
-print("\nConfusion Matrix:\n", confusion_mat)
+    # --- Save Classification Report as Text ---
+    report_text = classification_report(y_val, y_class)
+    with open(f"reports/classification_report_fold_{fold}.txt", "w") as f:
+        f.write(f"Fold {fold} Classification Report\n")
+        f.write(report_text)
 
-# Save the trained model
-joblib.dump(ensemble_model, 'loan_eligibility_model.pkl')
+    # --- Save Metrics Summary Row ---
+    summary.append({
+        "Fold": fold,
+        "Accuracy": acc,
+        "Precision (Approved)": report['1']['precision'],
+        "Recall (Approved)": report['1']['recall'],
+        "F1-Score (Approved)": report['1']['f1-score'],
+        "Support (Approved)": report['1']['support']
+    })
 
-# Save the scaler for preprocessing
-joblib.dump(scaler, 'scaler.pkl')
+    # Save model on Fold 1
+    if fold == 1:
+        model.save("models/best_model.h5")
 
-# Save the columns used in the model for future reference
-joblib.dump(X.columns, 'model_columns.pkl')
+    fold += 1
 
-print("Model, scaler, and columns saved successfully!")
+# --- Save Overall Metrics Summary CSV ---
+summary_df = pd.DataFrame(summary)
+summary_df.to_csv("reports/metrics_summary.csv", index=False)
+
+# --- Plot Evaluation Metrics Across Folds ---
+metrics_to_plot = ["Accuracy", "Precision (Approved)", "Recall (Approved)", "F1-Score (Approved)"]
+
+plt.figure(figsize=(10, 6))
+for metric in metrics_to_plot:
+    plt.plot(summary_df["Fold"], summary_df[metric], marker='o', label=metric)
+
+plt.title("Evaluation Metrics Across Folds")
+plt.xlabel("Fold")
+plt.ylabel("Score")
+plt.ylim(0, 1.05)
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.savefig("plots/metrics_across_folds.png")
+plt.close()
+
+# --- Bar Plot of Average Metrics ---
+avg_metrics = summary_df[metrics_to_plot].mean()
+
+plt.figure(figsize=(8, 5))
+sns.barplot(x=avg_metrics.index, y=avg_metrics.values, palette="viridis")
+plt.title("Average Evaluation Metrics Across All Folds")
+plt.ylabel("Average Score")
+plt.ylim(0, 1.05)
+for i, v in enumerate(avg_metrics.values):
+    plt.text(i, v + 0.01, f"{v:.2f}", ha='center')
+plt.tight_layout()
+plt.savefig("plots/average_metrics.png")
+plt.close()
+print("\n✅ All folds completed. Summary saved to reports/metrics_summary.csv")
