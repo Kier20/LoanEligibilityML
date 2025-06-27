@@ -1,0 +1,9 @@
+Fold 3 Classification Report
+              precision    recall  f1-score   support
+
+           0       0.92      0.90      0.91      5094
+           1       0.67      0.72      0.70      1422
+
+    accuracy                           0.86      6516
+   macro avg       0.80      0.81      0.80      6516
+weighted avg       0.87      0.86      0.86      6516

@@ -1,0 +1,9 @@
+Fold 5 Classification Report
+              precision    recall  f1-score   support
+
+           0       0.92      0.90      0.91      5095
+           1       0.67      0.73      0.70      1421
+
+    accuracy                           0.86      6516
+   macro avg       0.80      0.82      0.81      6516
+weighted avg       0.87      0.86      0.87      6516
