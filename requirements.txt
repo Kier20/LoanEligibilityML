@@ -5,7 +5,6 @@ astunparse==1.6.3
 awsebcli==3.21.0
 bleach==6.1.0
 blinker==1.7.0
-blis==1.0.1
 bokeh==3.3.4
 botocore==1.35.63
 cachetools==5.3.2
