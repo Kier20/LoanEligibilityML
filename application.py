@@ -43,7 +43,7 @@ def calculate_hidden_charges(loan_amount: float) -> dict:
     total = processing_fee + dst + disbursement_fee
     return {
         "processing_fee": round(processing_fee, 2),
-        "documentary_stamp_tax": round(dst, 2),
+        "documentary_stamp_tax": round(dst, 2),-+
         "disbursement_fee": disbursement_fee,
         "total_hidden_charges": round(total, 2)
     }
