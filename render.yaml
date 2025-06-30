@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: loan-predictor-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: 
+        value: 10000
+    plan: free
