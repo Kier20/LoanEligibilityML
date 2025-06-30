@@ -20,7 +20,7 @@ confection==0.1.5
 contourpy==1.2.0
 cycler==0.12.1
 cymem==2.0.10
-dask==2024.1.1
+dask==2024.11.2
 dask-expr==1.1.19
 dask-glm==0.3.2
 dask-ml==2023.3.24
