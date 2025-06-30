@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask import send_from_directory
 from flask_cors import CORS
 import numpy as np
 import pandas as pd
@@ -187,3 +188,8 @@ def predict():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+@app.route("/")
+def home():
+    return send_from_directory("static", "index.html")
+
