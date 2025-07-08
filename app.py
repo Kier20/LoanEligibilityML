@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
 @app.route("/")
 def home():
-    return send_from_directory("static", "index.html")
+    return send_from_directory("index.html")
     
 @app.route("/")
 def index():
