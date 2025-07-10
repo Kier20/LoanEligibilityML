@@ -9,7 +9,7 @@ import tensorflow as tf
 import shap
 import traceback
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates")
 CORS(app, origins="*", supports_credentials=True)
 
 # --- Custom focal loss used during model training ---
