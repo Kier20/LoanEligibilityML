@@ -190,13 +190,9 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 10000))  # Render sets the PORT env variable
     app.run(host="0.0.0.0", port=port)
-
-@app.route("/")
-def home():
-    return send_from_directory("index.html")
     
 @app.route("/")
 def index():
-    return "Loan Prediction API is up and running!"
+    return render_template("index.html")
 
 
