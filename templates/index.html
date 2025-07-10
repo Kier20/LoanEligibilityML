@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Loan Prediction</title>
+  <style>
+    :root[data-theme="light"] {
+      --primary-bg: #f4f9fc;
+      --secondary-bg: #ffffff;
+      --primary-text: #2c3e50;
+      --button-bg: #3498db;
+      --button-hover: #2980b9;
+      --success-bg: #e8f8f5;
+      --success-border: #1abc9c;
+      --warning-bg: #fff9e6;
+      --warning-border: #f1c40f;
+      --error-bg: #fce4e4;
+      --error-border: #e74c3c;
+    }
+
+    :root[data-theme="dark"] {
+      --primary-bg: #1e1e1e;
+      --secondary-bg: #2a2a2a;
+      --primary-text: #ecf0f1;
+      --button-bg: #2980b9;
+      --button-hover: #3498db;
+      --success-bg: #145c4c;
+      --success-border: #1abc9c;
+      --warning-bg: #665c00;
+      --warning-border: #f1c40f;
+      --error-bg: #762b2b;
+      --error-border: #e74c3c;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--primary-bg);
+      color: var(--primary-text);
+      transition: background 0.4s, color 0.4s;
+    }
+
+    h1 {
+      font-size: 2.75rem;
+      margin: 2rem 0 1rem;
+      text-align: center;
+    }
+
+    #loanForm {
+      max-width: 950px;
+      margin: 2rem auto;
+      padding: 2.5rem;
+      background: var(--secondary-bg);
+      border-radius: 10px;
+      box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    input, select {
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    button {
+      padding: 0.75rem 1.2rem;
+      font-size: 1rem;
+      margin: 0.5rem auto;
+      display: block;
+      max-width: 220px;
+      width: 100%;
+      border-radius: 6px;
+      background: var(--button-bg);
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: var(--button-hover);
+    }
+
+    #result, #biasWarnings, #error {
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 15px;
+      font-size: 16px;
+      border-radius: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.5s ease;
+    }
+
+    #result.show {
+      background: var(--success-bg);
+      border: 1px solid var(--success-border);
+      color: var(--primary-text);
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #biasWarnings.show {
+      background: var(--warning-bg);
+      border: 1px solid var(--warning-border);
+      color: var(--primary-text);
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #error.show {
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--primary-text);
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #loading {
+      text-align: center;
+      font-size: 16px;
+      color: var(--button-bg);
+      display: none;
+    }
+
+    .form-group {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .dark-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 6px 12px;
+      font-size: 0.875rem;
+      z-index: 1000;
+    }
+
+    #resultActions {
+      display: none;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    #result.show + #resultActions {
+      display: flex;
+    }
+
+    .hidden-charge-flag {
+      background-color: var(--error-bg);
+      color: var(--primary-text);
+      border: 1px solid var(--error-border);
+      padding: 10px;
+      margin-top: 15px;
+      border-radius: 6px;
+    }
+
+    .shap-explanation-note {
+      font-style: italic;
+      font-size: 14px;
+      color: var(--primary-text);
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <button class="dark-toggle" id="darkModeToggle">🌙 Dark Mode</button>
+  <h1>Loan Prediction</h1>
+
+  <form id="loanForm" autocomplete="off">
+    <div class="form-group">
+      <div><label>Age:</label><input type="number" name="person_age" required></div>
+      <div><label>Home Ownership:</label>
+        <select name="person_home_ownership" required>
+          <option value="">Select</option>
+          <option value="3">Rent</option>
+          <option value="2">Own</option>
+          <option value="0">Mortgage</option>
+          <option value="1">Other</option>
+        </select>
+      </div>
+      <div><label>Loan Intent:</label>
+        <select name="loan_intent" required>
+          <option value="">Select</option>
+          <option value="4">Personal</option>
+          <option value="0">Business</option>
+          <option value="1">Education</option>
+          <option value="3">Medical</option>
+          <option value="5">Venture</option>
+          <option value="2">Home Improvement</option>
+        </select>
+      </div>
+      <div><label>Loan Grade:</label>
+        <select name="loan_grade" required>
+          <option value="">Select</option>
+          <option value="0">A</option>
+          <option value="1">B</option>
+          <option value="2">C</option>
+          <option value="3">D</option>
+        </select>
+      </div>
+      <div><label>Default on File:</label>
+        <select name="cb_person_default_on_file" required>
+          <option value="">Select</option>
+          <option value="1">Yes</option>
+          <option value="0">No</option>
+        </select>
+      </div>
+      <div><label>Monthly Income:</label><input type="number" name="person_income" min="0" required></div>
+      <div><label>Loan Amount:</label><input type="number" name="loan_amnt" min="0" required></div>
+      <div><label>Credit History Length:</label><input type="number" name="cb_person_cred_hist_length" min="0" required></div>
+      <div><label>Employment Length:</label><input type="number" name="person_emp_length" min="0" required></div>
+    </div>
+
+    <button type="submit">Submit</button>
+    <button type="button" id="resetButton">Reset</button>
+  </form>
+
+  <div id="loading">Loading...</div>
+  <div id="result"></div>
+  <div id="resultActions">
+    <button id="printSummaryBtn">🖨️ Print Summary</button>
+    <button id="downloadSummaryBtn">⬇️ Download Summary</button>
+  </div>
+  <div id="biasWarnings"></div>
+  <div id="error"></div>
+
+  <script type="text/javascript">
+    const form = document.getElementById("loanForm");
+    const resultDiv = document.getElementById("result");
+    const biasDiv = document.getElementById("biasWarnings");
+    const errorDiv = document.getElementById("error");
+    const loadingDiv = document.getElementById("loading");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loadingDiv.style.display = "block";
+      resultDiv.innerHTML = biasDiv.innerHTML = errorDiv.innerHTML = "";
+      resultDiv.className = biasDiv.className = errorDiv.className = "";
+
+      const formData = new FormData(form);
+      try {
+        const res = fetch("https://loaneligibilitysystem.onrender.com/predict", {
+          method: "POST",
+          body: formData
+        });
+        const data = await res.json();
+        loadingDiv.style.display = "none";
+
+        if (!res.ok || data.error) {
+          errorDiv.textContent = "Error: " + (data.error || "Unexpected error occurred.");
+          errorDiv.className = "show";
+          return;
+        }
+
+        const {
+          prediction = "Unknown",
+          probability = 0,
+          adjusted_probability,
+          approval_reasons = [],
+          denial_reasons = [],
+          explanations = {},
+          hidden_charges_flag,
+          potential_biases = []
+        } = data;
+
+        const probRaw = (Math.min(probability * 100, 100)).toFixed(2);
+        const probAdj = adjusted_probability != null ? (Math.min(adjusted_probability * 100, 100)).toFixed(2) : "N/A";
+
+        let summary = `<strong>Prediction:</strong> <span style="font-size: 1.2rem">${prediction}</span><br>
+          <strong>Confidence Score:</strong> ${probRaw}%<br>
+          <strong>Bias-Adjusted Score:</strong> ${probAdj}%<br>
+          <div style="font-size: 14px; margin-top: 6px;">
+            <em>Note:</em> The adjusted score accounts for possible discrimination based on home ownership or loan intent.
+          </div><br>`;
+
+        if (prediction === "Approved" && approval_reasons.length > 0) {
+          summary += `<h3>Reason(s) for Approval:</h3><ul>${approval_reasons.map(r => `<li>${r}</li>`).join("")}</ul>`;
+        } else if (prediction === "Denied" && denial_reasons.length > 0) {
+          summary += `<h3>Reason(s) for Denial:</h3><ul>${denial_reasons.map(r => `<li>${r}</li>`).join("")}</ul>`;
+        }
+
+        if (explanations && Object.keys(explanations).length > 0) {
+          summary += `<h3>Model Explanation (SHAP):</h3>
+            <div class="shap-explanation-note">
+              <strong>How to read this:</strong> SHAP (SHapley Additive exPlanations) values explain how much each feature influenced your result.<br>
+              <ul>
+                <li><span style="color:green;">Positive values ➜ helped your approval</span></li>
+                <li><span style="color:red;">Negative values ➜ hurt your approval chances</span></li>
+              </ul>
+            </div><ul>`;
+          for (const [key, value] of Object.entries(explanations)) {
+            if (typeof value === "object" && value.feature && value.value != null) {
+              const val = parseFloat(value.value).toFixed(3);
+              const valClass = value.value >= 0 ? "color:green;" : "color:red;";
+              summary += `<li><strong>${value.feature}:</strong> <span style="${valClass}">${val}</span></li>`;
+            } else {
+              summary += `<li><strong>${key}:</strong> ${JSON.stringify(value)}</li>`;
+            }
+          }
+          summary += `</ul>`;
+        }
+
+        if (hidden_charges_flag) {
+          summary += `
+            <div class="hidden-charge-flag">
+              ⚠️ <strong>Hidden Charges Detected:</strong><br>
+              Our analysis found potential hidden fees or unclear terms associated with this loan offer. These may include:
+              <ul>
+                <li>Processing fees not declared upfront</li>
+                <li>Prepayment penalties</li>
+                <li>Insurance add-ons bundled into the loan</li>
+              </ul>
+              <strong>What you should do:</strong> Carefully read the loan agreement or ask your loan officer for a clear breakdown of all costs.
+            </div>
+          `;
+        }
+
+        resultDiv.innerHTML = summary;
+        resultDiv.className = "show";
+
+        if (potential_biases.length > 0) {
+          biasDiv.innerHTML = `<strong>Bias Warnings:</strong><ul>${potential_biases.map(b => `<li>${b}</li>`).join("")}</ul>`;
+          biasDiv.className = "show";
+        }
+
+      } catch (err) {
+        loadingDiv.style.display = "none";
+        errorDiv.textContent = "Error: " + err.message;
+        errorDiv.className = "show";
+      }
+    });
+
+    document.getElementById("resetButton").addEventListener("click", () => {
+      form.reset();
+      resultDiv.innerHTML = biasDiv.innerHTML = errorDiv.innerHTML = "";
+      resultDiv.className = biasDiv.className = errorDiv.className = "";
+    });
+
+    document.getElementById("printSummaryBtn").addEventListener("click", () => {
+      const printWin = window.open('', '', 'width=800,height=600');
+      printWin.document.write(`<pre>${resultDiv.innerText}</pre>`);
+      printWin.document.close();
+      printWin.print();
+    });
+
+    document.getElementById("downloadSummaryBtn").addEventListener("click", () => {
+      const blob = new Blob([resultDiv.innerText], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "loan_prediction_summary.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    const toggle = document.getElementById("darkModeToggle");
+    const currentTheme = localStorage.getItem("theme");
+    if (currentTheme) {
+      document.documentElement.setAttribute("data-theme", currentTheme);
+      toggle.textContent = currentTheme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode";
+    }
+
+    toggle.addEventListener("click", () => {
+      const newTheme = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", newTheme);
+      localStorage.setItem("theme", newTheme);
+      toggle.textContent = newTheme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode";
+    });
+  </script>
+</body>
+</html>
